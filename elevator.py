@@ -21,6 +21,7 @@ class Elevator:
         self._up_queue: SortedList[int] = SortedList()
         self._down_queue: SortedList[int] = SortedList(key=lambda x: -x)
         self._door_open_ticks_remaining = 0
+        self.on_arrival: callable | None = None  # controller hooks in here
     
     def add_destination(self, floor: int) -> None:
         if not (self.min_floor <= floor <= self.max_floor):
@@ -80,6 +81,9 @@ class Elevator:
         self.door.state = DoorState.OPENING
         self.door.state = DoorState.OPEN
         self._door_open_ticks_remaining = self.DOOR_OPEN_TICKS
+
+        if self.on_arrival:
+            self.on_arrival(self.id, self.current_floor, self.direction)
 
     def tick_doors(self) -> None:
         """Called by controller each tick. Counts down and closes doors."""
