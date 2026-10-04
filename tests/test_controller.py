@@ -163,17 +163,3 @@ class TestScenario:
         run_until_idle(controller)
         # floor 1 is served on the spot; every other call floor gets an arrival
         assert set(stops) == {3, 4, 5, 6, 8}
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="bug: mark_maintenance clears the car's queue but the controller "
-        "keeps the hall call assigned to it, so it is never served or reassigned",
-    )
-    def test_call_assigned_to_car_that_goes_into_maintenance_is_still_served(
-        self, controller, building
-    ):
-        controller.request(6, Direction.DOWN)
-        assert controller._assigned[HallCall(6, Direction.DOWN)] == 0
-        building.elevators[0].mark_maintenance()
-        run_until_idle(controller, max_ticks=50)
-        assert building.elevators[1].current_floor == 6

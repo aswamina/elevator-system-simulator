@@ -47,11 +47,6 @@ class TestAddDestination:
         elevator.add_destination(1)
         assert elevator.queue_length == 0
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="bug: SortedList keeps duplicates, so a second press of the same "
-        "floor leaves a stale entry and the car bounces away and back",
-    )
     def test_pressing_same_floor_twice_stops_there_once(self, elevator):
         elevator.add_destination(4)
         elevator.add_destination(4)
@@ -62,12 +57,10 @@ class TestAddDestination:
                 elevator.tick_doors()
         assert visited == [2, 3, 4]
 
-    def test_floors_split_into_up_and_down_queues(self, elevator):
-        elevator.current_floor = 5
-        elevator.add_destination(8)
-        elevator.add_destination(2)
-        assert list(elevator._up_queue) == [8]
-        assert list(elevator._down_queue) == [2]
+    def test_same_floor_pressed_twice_is_queued_once(self, elevator):
+        elevator.add_destination(4)
+        elevator.add_destination(4)
+        assert elevator.queue_length == 1
 
 
 class TestStep:
