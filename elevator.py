@@ -22,6 +22,7 @@ class Elevator:
         self._down_queue: SortedList[int] = SortedList(key=lambda x: -x)
         self._door_open_ticks_remaining = 0
         self.on_arrival: callable | None = None  # controller hooks in here
+        self.on_maintenance: callable | None = None  # controller hooks in here
     
     def add_destination(self, floor: int) -> None:
         if not (self.min_floor <= floor <= self.max_floor):
@@ -98,6 +99,9 @@ class Elevator:
         self.direction = Direction.IDLE
         self._up_queue.clear()
         self._down_queue.clear()
+
+        if self.on_maintenance:
+            self.on_maintenance(self.id)
 
     @property
     def is_available(self) -> bool:
