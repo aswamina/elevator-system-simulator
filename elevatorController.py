@@ -113,12 +113,17 @@ class ElevatorController:
         )
     
     def _dispatch(self, elevator: Elevator, call: HallCall) -> None:
-        if elevator.current_floor == call.floor:
-            # already there — open doors immediately, no need to track in _assigned
+        if (
+            elevator.current_floor == call.floor
+            and elevator.state == ElevatorState.STOPPED
+            and elevator.direction in (Direction.IDLE, call.direction)
+        ):
+            # already there and heading the caller's way — open doors immediately,
+            # no need to track in _assigned
             elevator.door.open()
             elevator._door_open_ticks_remaining = elevator.DOOR_OPEN_TICKS
             return
-        elevator.add_destination(call.floor)
+        elevator.add_hall_call(call.floor, call.direction)
         self._assigned[call] = elevator.id
 
     def _already_covered(self, call: HallCall) -> bool:
@@ -126,11 +131,10 @@ class ElevatorController:
         return call in self._assigned
     
     def _on_elevator_arrival(self, elevator_id: int, floor: int, direction: Direction) -> None:
-        to_remove = [
-            call for call, eid in self._assigned.items()
-            if eid == elevator_id and call.floor == floor
-        ]
-        for call in to_remove:
+        # only the call matching the direction the car is serving is cleared;
+        # a car passing a floor the other way leaves that call assigned
+        call = HallCall(floor=floor, direction=direction)
+        if self._assigned.get(call) == elevator_id:
             self._assigned.pop(call)
 
     def _on_elevator_maintenance(self, elevator_id: int) -> None:
