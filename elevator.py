@@ -20,6 +20,7 @@ class Elevator:
         self._cabin_stops: set[int] = set()  # cabin buttons: served in either direction
         self._door_open_ticks_remaining = 0
         self.on_arrival: callable | None = None  # controller hooks in here
+        self.on_maintenance: callable | None = None  # controller hooks in here
 
     def add_destination(self, floor: int) -> None:
         """Cabin button: stop at this floor whichever way the car is going."""
@@ -157,6 +158,9 @@ class Elevator:
         self._up_stops.clear()
         self._down_stops.clear()
         self._cabin_stops.clear()
+
+        if self.on_maintenance:
+            self.on_maintenance(self.id)
 
     @property
     def is_available(self) -> bool:

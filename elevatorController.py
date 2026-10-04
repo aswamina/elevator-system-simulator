@@ -62,6 +62,7 @@ class ElevatorController:
         # wire up arrival callbacks
         for elevator in self.building.elevators:
             elevator.on_arrival = self._on_elevator_arrival
+            elevator.on_maintenance = self._on_elevator_maintenance
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -135,6 +136,17 @@ class ElevatorController:
         call = HallCall(floor=floor, direction=direction)
         if self._assigned.get(call) == elevator_id:
             self._assigned.pop(call)
+
+    def _on_elevator_maintenance(self, elevator_id: int) -> None:
+        """Hand the car's hall calls to another car, or park them as pending."""
+        orphaned = [call for call, eid in self._assigned.items() if eid == elevator_id]
+        for call in orphaned:
+            self._assigned.pop(call)
+            elevator = self.strategy.select(call, self.building.available_elevators())
+            if elevator:
+                self._dispatch(elevator, call)
+            else:
+                self._pending.append(call)
 
     def _retry_pending(self) -> None:
         still_pending = []
