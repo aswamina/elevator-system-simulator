@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from direction import Direction
+from door import DoorState
 import direction
 from elevator import Elevator
 from elevatorState import ElevatorState
@@ -120,7 +121,10 @@ class ElevatorController:
         ):
             # already there and heading the caller's way — open doors immediately,
             # no need to track in _assigned
-            elevator.door.open()
+            # set the door state directly, as Elevator._arrive does: time is
+            # measured in ticks, so a wall-clock sleep here would only stall
+            # the caller (an API request, for one)
+            elevator.door.state = DoorState.OPEN
             elevator._door_open_ticks_remaining = elevator.DOOR_OPEN_TICKS
             return
         elevator.add_hall_call(call.floor, call.direction)

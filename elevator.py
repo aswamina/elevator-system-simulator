@@ -162,9 +162,20 @@ class Elevator:
         if self.on_maintenance:
             self.on_maintenance(self.id)
 
+    def return_to_service(self) -> None:
+        """Bring a car back from maintenance, parked idle where it stands."""
+        if self.state == ElevatorState.MAINTENANCE:
+            self.state = ElevatorState.STOPPED
+            self.direction = Direction.IDLE
+
     @property
     def is_available(self) -> bool:
         return self.state != ElevatorState.MAINTENANCE
+
+    @property
+    def stops(self) -> list[int]:
+        """Every floor this car still has to stop at, in floor order."""
+        return sorted(self._all_stops())
 
     @property
     def queue_length(self) -> int:
