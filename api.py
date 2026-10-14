@@ -4,19 +4,24 @@ Run it with:
 
     uv run uvicorn api:app --reload
 
-then open http://127.0.0.1:8000/docs for the interactive OpenAPI docs.
+then open http://127.0.0.1:8000/ for the building view, or
+http://127.0.0.1:8000/docs for the interactive OpenAPI docs.
 """
 
 import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from direction import Direction
 from simulation import Simulation
+
+UI_PAGE = Path(__file__).parent / "ui" / "index.html"
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -136,6 +141,11 @@ def create_app(simulation: Simulation | None = None, autostart: bool = True) -> 
             message = str(exc)
             status = 404 if message.startswith("No elevator") else 422
             raise HTTPException(status_code=status, detail=message) from exc
+
+    @app.get("/", include_in_schema=False)
+    def ui():
+        """The building view: shafts, cars and their buttons, driven by this API."""
+        return FileResponse(UI_PAGE)
 
     @app.get("/health", tags=["meta"])
     def health() -> dict:

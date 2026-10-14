@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elevator Simulator</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1d232b;
+    --muted: #6a7480;
+    --line: #dde1e6;
+    --shaft: #eef0f3;
+    --car: #2f6fdb;
+    --car-ink: #ffffff;
+    --open: #1f9d63;
+    --lit: #f2a516;
+    --lit-ink: #241800;
+    --maint: #b5bcc5;
+    --danger: #c43d3d;
+    --row: 44px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161b;
+      --panel: #1a2027;
+      --ink: #e6eaef;
+      --muted: #8f99a5;
+      --line: #2b333d;
+      --shaft: #20272f;
+      --car: #4d8bf0;
+      --open: #35c083;
+      --lit: #f5b638;
+      --maint: #4a525c;
+      --danger: #e06666;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 24px;
+    padding: 12px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  .meta { color: var(--muted); }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+  button, select, input {
+    font: inherit;
+    color: inherit;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 10px;
+  }
+  button { cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--muted); }
+  button:disabled { opacity: .45; cursor: default; }
+  input[type=number] { width: 4.5em; }
+  label { display: inline-flex; align-items: center; gap: 4px; }
+  #error {
+    display: none;
+    margin: 12px 16px 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--danger) 15%, transparent);
+    color: var(--danger);
+  }
+  main { padding: 16px; overflow-x: auto; }
+
+  /* building: a floor-label column, a hall-button column, then one column per shaft */
+  .building {
+    display: grid;
+    grid-template-columns: 48px 64px repeat(var(--cars), minmax(120px, 160px));
+    column-gap: 10px;
+    width: max-content;
+  }
+  .col { position: relative; }
+  .cell {
+    height: var(--row);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px dashed var(--line);
+  }
+  .floor-label { font-weight: 600; color: var(--muted); }
+  .hall { gap: 4px; }
+  .hall button {
+    width: 26px; height: 26px; padding: 0;
+    border-radius: 50%;
+    font-size: 11px;
+  }
+  .lit { background: var(--lit) !important; color: var(--lit-ink) !important; border-color: var(--lit) !important; }
+  .hall .spacer { width: 26px; }
+
+  .shaft { background: var(--shaft); border-radius: 6px; }
+  .shaft.maintenance {
+    background: repeating-linear-gradient(45deg, var(--shaft), var(--shaft) 8px, transparent 8px, transparent 16px);
+  }
+  .car {
+    position: absolute;
+    left: 8px; right: 8px;
+    height: calc(var(--row) - 6px);
+    border-radius: 6px;
+    background: var(--car);
+    color: var(--car-ink);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
+    font-weight: 600;
+    transition: top .45s ease-in-out, background-color .2s;
+    box-shadow: 0 1px 3px rgb(0 0 0 / .25);
+  }
+  .car.door-open { background: var(--open); }
+  .car.maintenance { background: var(--maint); }
+  .car .door { font-size: 11px; font-weight: 500; opacity: .9; }
+
+  .panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    padding: 0 16px 24px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .panel h2 { font-size: 15px; margin: 0 0 6px; display: flex; justify-content: space-between; }
+  .readout { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin-bottom: 10px; }
+  .readout dt { color: var(--muted); }
+  .readout dd { margin: 0; font-weight: 600; }
+  .keypad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 10px; }
+  .keypad button { padding: 4px 0; }
+  .tag {
+    font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 10px;
+    background: var(--maint); color: var(--ink);
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="name">Elevator Simulator</h1>
+  <span class="meta">Tick <strong id="tick">0</strong></span>
+  <div class="controls">
+    <button id="pause">Pause</button>
+    <button id="step" title="Advance one tick">Step</button>
+    <label>Speed
+      <select id="speed">
+        <option value="2">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="0.5">2×</option>
+        <option value="0.25">4×</option>
+      </select>
+    </label>
+    <form id="reset" style="display:contents">
+      <label>Floors <input id="floors" type="number" min="2" max="200" value="10"></label>
+      <label>Cars <input id="cars" type="number" min="1" max="50" value="3"></label>
+      <button type="submit">New building</button>
+    </form>
+  </div>
+</header>
+<div id="error" role="alert"></div>
+<main><div id="building" class="building"></div></main>
+<section id="panels" class="panels" aria-label="Elevator cars"></section>
+
+<script>
+// The API normally serves this page, so it lives at the same origin.
+// Point the page at another server with ?api=http://host:port
+const API = new URLSearchParams(location.search).get("api") || "";
+const POLL_MS = 250;
+
+const $ = (id) => document.getElementById(id);
+let state = null;
+let layoutKey = "";
+
+async function call(method, path, body) {
+  const res = await fetch(API + path, {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const err = await res.json();
+      detail = typeof err.detail === "string" ? err.detail : err.detail.map((d) => d.msg).join("; ");
+    } catch {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+function showError(message) {
+  const box = $("error");
+  box.textContent = message;
+  box.style.display = message ? "block" : "none";
+}
+
+async function act(method, path, body) {
+  try {
+    const result = await call(method, path, body);
+    showError("");
+    await refresh();
+    return result;
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+// ── Layout: rebuilt only when the building's shape changes ───────────────────
+
+function buildLayout(s) {
+  const root = $("building");
+  root.innerHTML = "";
+  root.style.setProperty("--cars", s.elevators.length);
+  const floorsTopDown = Array.from({ length: s.floors }, (_, i) => s.floors - i);
+
+  const labels = el("div", "col");
+  const hall = el("div", "col");
+  for (const f of floorsTopDown) {
+    labels.append(el("div", "cell floor-label", String(f)));
+    const cell = el("div", "cell hall");
+    cell.append(hallButton(f, "UP", f < s.floors), hallButton(f, "DOWN", f > 1));
+    hall.append(cell);
+  }
+  root.append(labels, hall);
+
+  for (const car of s.elevators) {
+    const shaft = el("div", "col shaft");
+    shaft.id = `shaft-${car.id}`;
+    for (const _ of floorsTopDown) shaft.append(el("div", "cell"));
+    const box = el("div", "car");
+    box.id = `car-${car.id}`;
+    box.innerHTML = `<span>#${car.id} <span class="arrow"></span></span><span class="door"></span>`;
+    shaft.append(box);
+    root.append(shaft);
+  }
+
+  const panels = $("panels");
+  panels.innerHTML = "";
+  for (const car of s.elevators) {
+    const p = el("div", "panel");
+    p.id = `panel-${car.id}`;
+    p.innerHTML = `
+      <h2>Car #${car.id} <span class="tag" hidden>Maintenance</span></h2>
+      <dl class="readout">
+        <dt>Floor</dt><dd class="floor"></dd>
+        <dt>Direction</dt><dd class="direction"></dd>
+        <dt>State</dt><dd class="state"></dd>
+        <dt>Door</dt><dd class="door"></dd>
+        <dt>Stops</dt><dd class="stops"></dd>
+      </dl>
+      <div class="keypad"></div>
+      <button class="maint"></button>`;
+    const keypad = p.querySelector(".keypad");
+    for (let f = 1; f <= s.floors; f++) {
+      const b = el("button", "", String(f));
+      b.dataset.floor = f;
+      b.title = `Cabin button: go to floor ${f}`;
+      b.onclick = () => act("POST", `/api/elevators/${car.id}/destinations`, { floor: f });
+      keypad.append(b);
+    }
+    p.querySelector(".maint").onclick = () =>
+      act("PUT", `/api/elevators/${car.id}/maintenance`, { in_maintenance: !state.elevators[car.id].in_maintenance });
+    panels.append(p);
+  }
+
+  $("floors").value = s.floors;
+  $("cars").value = s.elevators.length;
+}
+
+function hallButton(floor, direction, exists) {
+  if (!exists) return el("span", "spacer");
+  const b = el("button", "", direction === "UP" ? "▲" : "▼");
+  b.id = `hall-${floor}-${direction}`;
+  b.title = `Hall button: floor ${floor}, going ${direction.toLowerCase()}`;
+  b.onclick = () => act("POST", "/api/hall-calls", { floor, direction });
+  return b;
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+// ── Render: cheap per-poll updates ───────────────────────────────────────────
+
+const ARROWS = { UP: "▲", DOWN: "▼", IDLE: "" };
+
+function render(s) {
+  const key = `${s.floors}x${s.elevators.length}`;
+  if (key !== layoutKey) {
+    buildLayout(s);
+    layoutKey = key;
+  }
+  $("name").textContent = s.name;
+  $("tick").textContent = s.tick;
+  $("pause").textContent = s.clock.paused ? "Resume" : "Pause";
+  $("step").disabled = !s.clock.paused;
+  $("speed").value = String(s.clock.tick_interval);
+
+  const waiting = new Set(
+    [...s.hall_calls.assigned, ...s.hall_calls.pending].map((c) => `${c.floor}-${c.direction}`)
+  );
+  for (let f = 1; f <= s.floors; f++) {
+    for (const d of ["UP", "DOWN"]) {
+      $(`hall-${f}-${d}`)?.classList.toggle("lit", waiting.has(`${f}-${d}`));
+    }
+  }
+
+  const rowPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--row"));
+  for (const car of s.elevators) {
+    const box = $(`car-${car.id}`);
+    box.style.top = `${(s.floors - car.current_floor) * rowPx + 3}px`;
+    box.classList.toggle("door-open", car.door === "OPEN" || car.door === "OPENING");
+    box.classList.toggle("maintenance", car.in_maintenance);
+    box.querySelector(".arrow").textContent = ARROWS[car.direction];
+    box.querySelector(".door").textContent = car.in_maintenance ? "out of service" : `door ${car.door.toLowerCase()}`;
+    $(`shaft-${car.id}`).classList.toggle("maintenance", car.in_maintenance);
+
+    const p = $(`panel-${car.id}`);
+    p.querySelector(".floor").textContent = car.current_floor;
+    p.querySelector(".direction").textContent = car.direction.toLowerCase();
+    p.querySelector(".state").textContent = car.state.toLowerCase();
+    p.querySelector(".door").textContent = car.door.toLowerCase();
+    p.querySelector(".stops").textContent = car.stops.length ? car.stops.join(", ") : "none";
+    p.querySelector(".tag").hidden = !car.in_maintenance;
+    const stops = new Set(car.stops);
+    for (const b of p.querySelectorAll(".keypad button")) {
+      b.classList.toggle("lit", stops.has(Number(b.dataset.floor)));
+      b.disabled = car.in_maintenance;
+    }
+    p.querySelector(".maint").textContent = car.in_maintenance ? "Return to service" : "Take out of service";
+  }
+}
+
+async function refresh() {
+  try {
+    state = await call("GET", "/api/building");
+    render(state);
+    if ($("error").textContent.startsWith("Can't reach")) showError("");
+  } catch (e) {
+    showError(`Can't reach the simulator API: ${e.message}`);
+  }
+}
+
+$("pause").onclick = () => act("PATCH", "/api/simulation", { paused: !state.clock.paused });
+$("step").onclick = () => act("POST", "/api/simulation/tick");
+$("speed").onchange = (e) => act("PATCH", "/api/simulation", { tick_interval: Number(e.target.value) });
+$("reset").onsubmit = (e) => {
+  e.preventDefault();
+  act("PUT", "/api/building", {
+    name: state.name,
+    floors: Number($("floors").value),
+    elevators: Number($("cars").value),
+  });
+};
+
+refresh();
+setInterval(refresh, POLL_MS);
+</script>
+</body>
+</html>
