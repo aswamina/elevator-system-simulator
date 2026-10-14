@@ -3,6 +3,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+import api
 from api import create_app
 from simulation import Simulation
 
@@ -201,8 +202,20 @@ class TestBackgroundClock:
 
 
 class TestUI:
-    def test_root_serves_the_building_view(self, client):
-        response = client.get("/")
+    def test_serves_the_built_react_app_at_root(self, sim, tmp_path, monkeypatch):
+        (tmp_path / "assets").mkdir()
+        (tmp_path / "index.html").write_text("<div id=root></div>")
+        (tmp_path / "assets" / "app.js").write_text("console.log(1)")
+        monkeypatch.setattr(api, "WEB_DIST", tmp_path)
+        with TestClient(create_app(sim, autostart=False)) as client:
+            assert client.get("/").text == "<div id=root></div>"
+            assert client.get("/assets/app.js").status_code == 200
+            # the API still wins over the static files
+            assert client.get("/api/building").json()["name"] == "test"
+
+    def test_explains_how_to_build_when_the_app_is_missing(self, sim, tmp_path, monkeypatch):
+        monkeypatch.setattr(api, "WEB_DIST", tmp_path / "missing")
+        with TestClient(create_app(sim, autostart=False)) as client:
+            response = client.get("/")
         assert response.status_code == 200
-        assert response.headers["content-type"].startswith("text/html")
-        assert "/api/building" in response.text
+        assert "npm run build" in response.text

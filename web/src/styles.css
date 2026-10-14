@@ -1,0 +1,547 @@
+:root {
+  --bg: #eef1f5;
+  --panel: #ffffff;
+  --ink: #1b222b;
+  --muted: #66707c;
+  --line: #d8dde4;
+  --sky-top: #cfe3f7;
+  --sky-bottom: #eef4fb;
+  --wall: #f7f3ec;
+  --slab: #c9c1b4;
+  --shaft: #2e3540;
+  --shaft-mark: #3b4350;
+  --rope: #9aa3ad;
+  --car: #3d74d8;
+  --car-dark: #2b56a6;
+  --door: #c3cad3;
+  --door-edge: #8d96a1;
+  --light: #ffe9a8;
+  --lit: #f2a516;
+  --lit-ink: #241800;
+  --led: #ff8a3d;
+  --led-bg: #1a1d22;
+  --moving: #3d74d8;
+  --idle: #6a7480;
+  --boarding: #1f9d63;
+  --maint: #9aa1aa;
+  --hazard: #f2c230;
+  --danger: #c43d3d;
+  --ground: #6b8f4e;
+
+  color-scheme: light dark;
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11151a;
+    --panel: #1a2028;
+    --ink: #e5e9ee;
+    --muted: #8e98a4;
+    --line: #2b333d;
+    --sky-top: #0d1726;
+    --sky-bottom: #1a2638;
+    --wall: #262b33;
+    --slab: #4a4f57;
+    --shaft: #0f1318;
+    --shaft-mark: #1c222a;
+    --rope: #6c757f;
+    --car: #4d86eb;
+    --car-dark: #34609f;
+    --door: #8b939d;
+    --door-edge: #5e6670;
+    --light: #ffe08a;
+    --idle: #8e98a4;
+    --boarding: #35c083;
+    --maint: #555c66;
+    --ground: #3e5a2e;
+    --danger: #e06666;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+button {
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+input[type="number"] {
+  width: 4.5em;
+}
+label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lit {
+  background: var(--lit) !important;
+  border-color: var(--lit) !important;
+  color: var(--lit-ink) !important;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 12px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-right: auto;
+}
+.title h1 {
+  font-size: 18px;
+  margin: 0;
+}
+.tick {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.control-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.error {
+  margin: 12px 16px 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+.loading {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* ── Building cross-section ─────────────────────────────────────────────── */
+
+.scene {
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.building {
+  --label-w: 40px;
+  --hall-w: 72px;
+  --shaft-w: 112px;
+  --gap: 14px;
+  --columns: var(--label-w) var(--hall-w) repeat(var(--cars), var(--shaft-w));
+
+  width: max-content;
+  margin: 0 auto;
+  padding: 0 18px;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(var(--sky-top), var(--sky-bottom));
+}
+
+.roof {
+  display: grid;
+  grid-template-columns: var(--columns);
+  column-gap: var(--gap);
+  padding: 14px 10px 0;
+}
+.roof-spacer {
+  grid-column: span 2;
+}
+
+.machine-room {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px 8px 0 0;
+  background: var(--slab);
+}
+.sheave {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--shaft);
+  border-top-color: var(--rope);
+  border-bottom-color: var(--rope);
+}
+.sheave.spin-up {
+  animation: spin 0.8s linear infinite reverse;
+}
+.sheave.spin-down {
+  animation: spin 0.8s linear infinite;
+}
+.indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 52px;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--led-bg);
+  color: var(--led);
+  font: 600 16px/1 ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--led) 60%, transparent);
+}
+.machine-room.idle .indicator,
+.machine-room.maintenance .indicator {
+  opacity: 0.55;
+}
+.indicator-arrow {
+  width: 1ch;
+  font-size: 11px;
+}
+.indicator-arrow.moving {
+  animation: blink 0.9s steps(2, start) infinite;
+}
+
+.interior {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--columns);
+  grid-template-rows: repeat(var(--floors), var(--row));
+  column-gap: var(--gap);
+  padding: 0 10px;
+  background: var(--wall);
+  border-left: 6px solid var(--slab);
+  border-right: 6px solid var(--slab);
+}
+
+.floor-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  border-bottom: 4px solid var(--slab);
+}
+.floor-number {
+  width: var(--label-w);
+  text-align: center;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.hall-panel {
+  width: var(--hall-w);
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+.hall-button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 10px;
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.hall-button.lit {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--lit) 70%, transparent);
+}
+
+.shaft {
+  position: relative;
+  grid-row: 1 / -1;
+  z-index: 1;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--row) - 4px),
+      var(--shaft-mark) calc(var(--row) - 4px),
+      var(--shaft-mark) var(--row)
+    ),
+    var(--shaft);
+}
+.shaft.maintenance {
+  background:
+    repeating-linear-gradient(-45deg, var(--hazard) 0 10px, var(--shaft) 10px 20px);
+  opacity: 0.85;
+}
+
+/* The rope runs from the machine room down to the roof of the car. */
+.rope {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 1px);
+  width: 2px;
+  background: repeating-linear-gradient(to bottom, var(--rope) 0 6px, transparent 6px 9px);
+  transition: height var(--tick) linear;
+}
+.shaft.moving .rope.dir-up {
+  animation: rope-up 0.6s linear infinite;
+}
+.shaft.moving .rope.dir-down {
+  animation: rope-down 0.6s linear infinite;
+}
+
+.counterweight {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: calc(var(--row) * 0.6);
+  border-radius: 2px;
+  background: var(--rope);
+  transition: transform var(--tick) linear;
+}
+
+.car {
+  position: absolute;
+  top: 3px;
+  left: 8px;
+  right: 16px;
+  height: calc(var(--row) - 7px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 4px;
+  background: var(--car);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+  /* one floor per tick, eased over the whole tick: steady travel between floors */
+  transition:
+    transform var(--tick) linear,
+    background-color 0.3s;
+}
+.car.maintenance {
+  background: var(--maint);
+  box-shadow: none;
+}
+.car-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 1px 6px 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 14px;
+}
+.car-arrow.moving {
+  display: inline-block;
+  animation: nudge-up 0.7s ease-in-out infinite;
+}
+
+.cabin {
+  position: relative;
+  flex: 1;
+  margin: 1px 4px 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--car-dark);
+}
+.car.moving .cabin {
+  animation: sway 0.5s ease-in-out infinite alternate;
+}
+.cabin-light {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, var(--light), transparent 70%);
+  opacity: 0.55;
+}
+.car.idle .cabin-light {
+  animation: breathe 3.2s ease-in-out infinite;
+}
+.car.boarding .cabin-light {
+  opacity: 1;
+}
+.car.maintenance .cabin-light {
+  opacity: 0;
+}
+
+/* Doors snap open and shut for now; animating them is step 4. */
+.door {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background: linear-gradient(90deg, var(--door), color-mix(in srgb, var(--door) 80%, white));
+  border: 1px solid var(--door-edge);
+}
+.door.left {
+  left: 0;
+}
+.door.right {
+  right: 0;
+}
+.door.left.open {
+  transform: translateX(-88%);
+}
+.door.right.open {
+  transform: translateX(88%);
+}
+.out-of-service {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--hazard) 80%, transparent);
+}
+
+.ground {
+  height: 14px;
+  margin: 0 -18px;
+  background: var(--ground);
+}
+
+/* ── Car panels ─────────────────────────────────────────────────────────── */
+
+.car-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+  padding: 0 16px 24px;
+}
+.car-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+.car-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.car-panel h2 {
+  font-size: 15px;
+  margin: 0;
+}
+.status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: #fff;
+}
+.status-pill.moving {
+  background: var(--moving);
+}
+.status-pill.idle {
+  background: var(--idle);
+}
+.status-pill.boarding {
+  background: var(--boarding);
+}
+.status-pill.maintenance {
+  background: var(--maint);
+}
+.readout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 0 0 10px;
+}
+.readout dt {
+  color: var(--muted);
+}
+.readout dd {
+  margin: 0;
+  font-weight: 600;
+}
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.keypad button {
+  padding: 4px 0;
+}
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+@keyframes sway {
+  from {
+    transform: translateX(-0.5px);
+  }
+  to {
+    transform: translateX(0.5px);
+  }
+}
+@keyframes nudge-up {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes rope-up {
+  to {
+    background-position: 0 -9px;
+  }
+}
+@keyframes rope-down {
+  to {
+    background-position: 0 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+  }
+  .car,
+  .counterweight,
+  .rope {
+    transition-duration: 0.01s !important;
+  }
+}
