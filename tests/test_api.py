@@ -198,3 +198,11 @@ class TestBackgroundClock:
             before = client.get("/api/building").json()["tick"]
             time.sleep(0.1)
             assert client.get("/api/building").json()["tick"] == before
+
+
+class TestUI:
+    def test_root_serves_the_building_view(self, client):
+        response = client.get("/")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/html")
+        assert "/api/building" in response.text
