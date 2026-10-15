@@ -369,6 +369,7 @@ label {
   inset: 0;
   background: radial-gradient(ellipse at 50% 0%, var(--light), transparent 70%);
   opacity: 0.55;
+  transition: opacity var(--door-time) ease-in-out;
 }
 .car.idle .cabin-light {
   animation: breathe 3.2s ease-in-out infinite;
@@ -380,9 +381,9 @@ label {
   opacity: 0;
 }
 
-/* Doors snap open and shut for now; animating them is step 4. */
 .door {
   position: absolute;
+  transition: transform var(--door-time) ease-in-out;
   top: 0;
   bottom: 0;
   width: 50%;
@@ -541,7 +542,9 @@ label {
   }
   .car,
   .counterweight,
-  .rope {
+  .rope,
+  .door,
+  .cabin-light {
     transition-duration: 0.01s !important;
   }
 }

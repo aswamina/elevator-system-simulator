@@ -54,6 +54,8 @@ export function Building({ building, onHallCall }: Props) {
     // a car moves one floor per tick, so spreading each move over the tick
     // makes the motion continuous instead of jumping floor to floor
     "--tick": `${travelSeconds}s`,
+    // doors slide within half a tick, so they're shut before the car can move off
+    "--door-time": `${Math.min(0.6, travelSeconds / 2)}s`,
   } as CSSProperties;
 
   return (
