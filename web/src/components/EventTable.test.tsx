@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ButtonEvent } from "../api";
 import { EventTable } from "./EventTable";
 
@@ -54,5 +54,50 @@ describe("<EventTable>", () => {
   it("explains itself when empty", () => {
     render(<EventTable events={[]} />);
     expect(screen.getByText(/shows up here/)).toBeInTheDocument();
+  });
+});
+
+describe("paging", () => {
+  const many: ButtonEvent[] = Array.from({ length: 45 }, (_, i) => ({
+    ...base,
+    id: 45 - i,
+    kind: "hall" as const,
+    floor: (i % 9) + 1,
+    direction: "UP" as const,
+    car_id: 0,
+    status: "waiting" as const,
+  }));
+
+  it("shows 20 events a page, newest first, and pages through the rest", () => {
+    render(<EventTable events={many} />);
+    expect(screen.getAllByTestId(/^event-/)).toHaveLength(20);
+    expect(screen.getByTestId("event-45")).toBeInTheDocument();
+    expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
+    expect(screen.getByLabelText("Newer events")).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText("Older events"));
+    expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
+    expect(screen.getByTestId("event-25")).toBeInTheDocument();
+    expect(screen.queryByTestId("event-45")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText("Older events"));
+    expect(screen.getAllByTestId(/^event-/)).toHaveLength(5);
+    expect(screen.getByLabelText("Older events")).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText("Newer events"));
+    expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
+  });
+
+  it("hides the pager when everything fits on one page", () => {
+    render(<EventTable events={many.slice(0, 20)} />);
+    expect(screen.queryByRole("navigation", { name: "Event pages" })).toBeNull();
+  });
+
+  it("falls back to the last page when the log shrinks", () => {
+    const { rerender } = render(<EventTable events={many} />);
+    fireEvent.click(screen.getByLabelText("Older events"));
+    fireEvent.click(screen.getByLabelText("Older events"));
+    rerender(<EventTable events={many.slice(0, 30)} />);
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
   });
 });

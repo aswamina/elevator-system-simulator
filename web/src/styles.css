@@ -674,6 +674,20 @@ label {
 .event-pill.cancelled {
   background: color-mix(in srgb, var(--maint) 35%, transparent);
 }
+.event-pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+.event-pager button {
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
 @keyframes row-in {
   from {
     background: color-mix(in srgb, var(--lit) 35%, transparent);

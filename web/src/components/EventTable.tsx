@@ -1,4 +1,7 @@
+import { useState } from "react";
 import type { ButtonEvent } from "../api";
+
+export const PAGE_SIZE = 20;
 
 const ARROW = { UP: "▲", DOWN: "▼" } as const;
 
@@ -24,6 +27,12 @@ function Served({ event }: { event: ButtonEvent }) {
 }
 
 export function EventTable({ events }: { events: ButtonEvent[] }) {
+  const [requestedPage, setPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(events.length / PAGE_SIZE));
+  // the log can shrink under us (a new building clears it)
+  const page = Math.min(requestedPage, pages - 1);
+  const shown = events.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <aside className="event-log" aria-label="Button presses">
       <header>
@@ -44,7 +53,7 @@ export function EventTable({ events }: { events: ButtonEvent[] }) {
               </tr>
             </thead>
             <tbody>
-              {events.map((event) => (
+              {shown.map((event) => (
                 <tr key={event.id} className={`event-row kind-${event.kind} ${event.status}`} data-testid={`event-${event.id}`}>
                   <td className="event-time">{clockTime(event.pressed_at)}</td>
                   <td>{describe(event)}</td>
@@ -59,6 +68,19 @@ export function EventTable({ events }: { events: ButtonEvent[] }) {
             </tbody>
           </table>
         </div>
+      )}
+      {pages > 1 && (
+        <nav className="event-pager" aria-label="Event pages">
+          <button onClick={() => setPage(page - 1)} disabled={page === 0} aria-label="Newer events">
+            ‹ Newer
+          </button>
+          <span>
+            Page {page + 1} of {pages}
+          </span>
+          <button onClick={() => setPage(page + 1)} disabled={page >= pages - 1} aria-label="Older events">
+            Older ›
+          </button>
+        </nav>
       )}
     </aside>
   );

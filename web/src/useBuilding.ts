@@ -11,7 +11,7 @@ export function useBuilding() {
 
   const refresh = useCallback(async () => {
     try {
-      const [nextBuilding, nextEvents] = await Promise.all([api.building(), api.events()]);
+      const [nextBuilding, nextEvents] = await Promise.all([api.building(), api.events(200)]);
       setBuilding(nextBuilding);
       setEvents(nextEvents);
       setError((e) => (e?.startsWith("Can't reach") ? null : e));
