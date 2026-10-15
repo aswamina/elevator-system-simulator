@@ -16,11 +16,23 @@ The simulator is exposed as a JSON API (FastAPI). Start it with:
 uv run uvicorn api:app --reload
 ```
 
-Open http://127.0.0.1:8000/ for the building view: every shaft with its car
-moving floor to floor, hall buttons per floor, and a cabin keypad, readout and
-maintenance switch per car, plus pause / step / speed controls. The page is a
-single static file (`ui/index.html`) that polls the API, so it needs no build
-step. Interactive API docs are at http://127.0.0.1:8000/docs. The simulation advances on a
+The building view is a React app in `web/` (Vite + TypeScript). Build it once,
+and the API server serves it at http://127.0.0.1:8000/:
+
+```
+cd web
+npm install
+npm run build
+```
+
+It draws the building in cross-section: each shaft with its car gliding floor
+to floor, ropes, counterweights and a floor indicator per shaft, hall buttons
+on every floor, and a cabin keypad, readout and maintenance switch per car.
+Idle cars sit with their cabin light gently pulsing. While working on the UI,
+run `npm run dev` in `web/` instead (http://localhost:5173, with API calls
+forwarded to the server on :8000) and `npm test` for its tests.
+
+Interactive API docs are at http://127.0.0.1:8000/docs. The simulation advances on a
 background clock; a car moves one floor per tick.
 
 | Method | Path | What it does |

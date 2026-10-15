@@ -15,13 +15,25 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from direction import Direction
 from simulation import Simulation
 
-UI_PAGE = Path(__file__).parent / "ui" / "index.html"
+# The React building view (web/), once built with `npm run build`.
+WEB_DIST = Path(__file__).parent / "web" / "dist"
+
+UI_NOT_BUILT = """<!doctype html><meta charset="utf-8"><title>Elevator Simulator</title>
+<body style="font-family: system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem">
+<h1>The building view hasn't been built yet</h1>
+<p>Build it once with:</p>
+<pre>cd web
+npm install
+npm run build</pre>
+<p>then reload this page. The API itself is running: see <a href="/docs">/docs</a>.</p>
+</body>"""
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -142,11 +154,6 @@ def create_app(simulation: Simulation | None = None, autostart: bool = True) -> 
             status = 404 if message.startswith("No elevator") else 422
             raise HTTPException(status_code=status, detail=message) from exc
 
-    @app.get("/", include_in_schema=False)
-    def ui():
-        """The building view: shafts, cars and their buttons, driven by this API."""
-        return FileResponse(UI_PAGE)
-
     @app.get("/health", tags=["meta"])
     def health() -> dict:
         return {"status": "ok"}
@@ -212,6 +219,14 @@ def create_app(simulation: Simulation | None = None, autostart: bool = True) -> 
         """Advance the simulation by hand, e.g. while the clock is paused."""
         sim.tick(steps)
         return sim.snapshot()
+
+    # Mounted last so the API routes above take precedence over the static files.
+    if (WEB_DIST / "index.html").exists():
+        app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="ui")
+    else:
+        @app.get("/", include_in_schema=False, response_class=HTMLResponse)
+        def ui_not_built():
+            return UI_NOT_BUILT
 
     return app
 
