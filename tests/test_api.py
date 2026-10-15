@@ -247,3 +247,22 @@ class TestResize:
     @pytest.mark.parametrize("count", [0, 51])
     def test_rejects_counts_out_of_range(self, client, count):
         assert client.patch("/api/building", json={"elevators": count}).status_code == 422
+
+
+class TestEvents:
+    def test_lists_presses_newest_first(self, client):
+        client.post("/api/hall-calls", json={"floor": 4, "direction": "UP"})
+        client.post("/api/elevators/1/destinations", json={"floor": 7})
+        body = client.get("/api/events").json()
+        assert [(e["kind"], e["floor"]) for e in body] == [("cabin", 7), ("hall", 4)]
+        assert body[1]["car_id"] == 0
+        assert body[1]["status"] == "waiting"
+
+        tick(client, 3)
+        hall = client.get("/api/events").json()[1]
+        assert (hall["status"], hall["car_id"], hall["served_tick"]) == ("served", 0, 3)
+
+    def test_limit(self, client):
+        for floor in range(2, 6):
+            client.post("/api/hall-calls", json={"floor": floor, "direction": "UP"})
+        assert len(client.get("/api/events", params={"limit": 2}).json()) == 2

@@ -5,6 +5,7 @@ from direction import Direction
 from elevator import Elevator
 from elevatorController import ElevatorController
 from elevatorState import ElevatorState
+from events import EventLog
 
 
 class Simulation:
@@ -28,6 +29,7 @@ class Simulation:
         self._thread: threading.Thread | None = None
         self.tick_interval = _check_interval(tick_interval)
         self.paused = False
+        self.events = EventLog()
         self.reset(name, floors, elevators)
 
     # ── Building ──────────────────────────────────────────────────────────────
@@ -41,6 +43,7 @@ class Simulation:
             self.building = building
             self.controller = ElevatorController(building)
             self.tick_count = 0
+            self.events.clear()
 
     def set_elevator_count(self, count: int) -> None:
         """Add or remove cars while the simulation runs; everything else carries on.
@@ -55,6 +58,7 @@ class Simulation:
                 self.controller.add_elevator()
             while len(self.building.elevators) > count:
                 self.controller.remove_elevator()
+            self._sync_events()
 
     def request(self, floor: int, direction: Direction) -> None:
         """Hall button press."""
@@ -67,6 +71,8 @@ class Simulation:
             if floor == 1 and direction == Direction.DOWN:
                 raise ValueError("There is no DOWN button on the ground floor")
             self.controller.request(floor, direction)
+            self.events.hall_call(floor, direction, self.tick_count)
+            self._sync_events()
 
     def board(self, elevator_id: int, floor: int) -> None:
         """Cabin button press."""
@@ -75,6 +81,8 @@ class Simulation:
             if not elevator.is_available:
                 raise ValueError(f"Elevator {elevator_id} is in maintenance")
             self.controller.board(elevator_id, floor)
+            self.events.cabin_press(elevator_id, floor, self.tick_count)
+            self._sync_events()
 
     def set_maintenance(self, elevator_id: int, on: bool) -> None:
         with self._lock:
@@ -83,6 +91,7 @@ class Simulation:
                 elevator.mark_maintenance()
             elif not on:
                 elevator.return_to_service()
+            self._sync_events()
 
     def get_elevator(self, elevator_id: int) -> dict:
         with self._lock:
@@ -95,6 +104,7 @@ class Simulation:
             for _ in range(steps):
                 self.controller.tick()
                 self.tick_count += 1
+                self._sync_events()
 
     def configure(self, tick_interval: float | None = None, paused: bool | None = None) -> None:
         with self._lock:
@@ -159,6 +169,14 @@ class Simulation:
                     ],
                 },
             }
+
+    def recent_events(self, limit: int = 50) -> list[dict]:
+        """Hall calls and cabin presses, newest first, with the car that served each."""
+        with self._lock:
+            return self.events.recent(limit)
+
+    def _sync_events(self) -> None:
+        self.events.sync(self.building, self.controller, self.tick_count)
 
     def _check_floor(self, floor: int) -> None:
         if not (1 <= floor <= self.building.floors):
