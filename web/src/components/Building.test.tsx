@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { Building as BuildingState, Elevator } from "../api";
 import { Building, carOffset, motionOf, rowHeight } from "./Building";
 
@@ -106,5 +106,42 @@ describe("heading arrows", () => {
     });
     render(<Building building={state} onHallCall={() => {}} />);
     expect(screen.getByTestId("car-0")).toHaveTextContent("▲");
+  });
+});
+
+describe("arriving at a floor", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("keeps the doors shut until the car has glided level with the floor", () => {
+    vi.useFakeTimers();
+    const moving = building({
+      elevators: [car({ current_floor: 4, state: "MOVING", direction: "UP", stops: [5] })],
+    });
+    const { rerender } = render(<Building building={moving} onHallCall={() => {}} />);
+
+    // the simulator reports the car at 5 with its doors open the moment the tick lands
+    const arrived = building({
+      elevators: [car({ current_floor: 5, direction: "UP", door: "OPEN" })],
+    });
+    rerender(<Building building={arrived} onHallCall={() => {}} />);
+    const drawn = screen.getByTestId("car-0");
+    expect(drawn).toHaveAttribute("data-doors", "closed");
+    expect(drawn).toHaveAttribute("data-motion", "moving");
+
+    // the glide takes one tick (1 s here), plus a frame or so of slack
+    act(() => vi.advanceTimersByTime(1049));
+    expect(drawn).toHaveAttribute("data-doors", "closed");
+    act(() => vi.advanceTimersByTime(1));
+    expect(drawn).toHaveAttribute("data-doors", "open");
+    expect(drawn).toHaveAttribute("data-motion", "boarding");
+  });
+
+  it("opens straight away for a call at the floor the car is already on", () => {
+    const parked = building({ elevators: [car({ current_floor: 3 })] });
+    const { rerender } = render(<Building building={parked} onHallCall={() => {}} />);
+    rerender(
+      <Building building={building({ elevators: [car({ current_floor: 3, door: "OPEN" })] })} onHallCall={() => {}} />,
+    );
+    expect(screen.getByTestId("car-0")).toHaveAttribute("data-doors", "open");
   });
 });

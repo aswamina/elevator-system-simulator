@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { Building as BuildingState, Elevator, HallDirection } from "../api";
 
 /** Height of one floor in px; shorter for tall buildings so they still fit. */
@@ -46,13 +46,14 @@ export function Building({ building, onHallCall }: Props) {
     ),
   );
 
+  const travelSeconds = building.clock.paused ? 0.3 : building.clock.tick_interval;
   const style = {
     "--floors": floors,
     "--cars": elevators.length,
     "--row": `${row}px`,
     // a car moves one floor per tick, so spreading each move over the tick
     // makes the motion continuous instead of jumping floor to floor
-    "--tick": `${building.clock.paused ? 0.3 : building.clock.tick_interval}s`,
+    "--tick": `${travelSeconds}s`,
   } as CSSProperties;
 
   return (
@@ -79,7 +80,7 @@ export function Building({ building, onHallCall }: Props) {
           </div>
         ))}
         {elevators.map((car, i) => (
-          <Shaft key={car.id} car={car} column={i + 3} floors={floors} row={row} />
+          <Shaft key={car.id} car={car} column={i + 3} floors={floors} row={row} travelMs={travelSeconds * 1000} />
         ))}
       </div>
 
@@ -124,8 +125,39 @@ function MachineRoom({ car }: { car: Elevator }) {
   );
 }
 
-function Shaft({ car, column, floors, row }: { car: Elevator; column: number; floors: number; row: number }) {
-  const motion = motionOf(car);
+/**
+ * The floor the drawn car has finished gliding to. The simulator reports a car
+ * at its new floor (doors already open, if it stops there) the moment the tick
+ * lands, while the drawing still takes `travelMs` to get it there.
+ */
+export function useSettledFloor(floor: number, travelMs: number): number {
+  const [settled, setSettled] = useState(floor);
+  useEffect(() => {
+    if (floor === settled) return;
+    // a little slack, since the CSS transition starts a frame after the render
+    const id = window.setTimeout(() => setSettled(floor), travelMs + 50);
+    return () => window.clearTimeout(id);
+  }, [floor, settled, travelMs]);
+  return settled;
+}
+
+function Shaft({
+  car,
+  column,
+  floors,
+  row,
+  travelMs,
+}: {
+  car: Elevator;
+  column: number;
+  floors: number;
+  row: number;
+  travelMs: number;
+}) {
+  const arrived = useSettledFloor(car.current_floor, travelMs) === car.current_floor;
+  // keep the doors shut and the car "moving" until it is level with the landing
+  const doorsOpen = arrived && car.door !== "CLOSED";
+  const motion = !arrived && !car.in_maintenance ? "moving" : motionOf(car);
   const offset = carOffset(car.current_floor, floors, row);
   // the counterweight hangs on the other end of the rope, so it travels the opposite way
   const counterweight = (car.current_floor - 1) * row;
@@ -144,6 +176,7 @@ function Shaft({ car, column, floors, row }: { car: Elevator; column: number; fl
         data-testid={`car-${car.id}`}
         data-motion={motion}
         data-floor={car.current_floor}
+        data-doors={doorsOpen ? "open" : "closed"}
       >
         <div className="car-header">
           <span>#{car.id}</span>
@@ -151,8 +184,8 @@ function Shaft({ car, column, floors, row }: { car: Elevator; column: number; fl
         </div>
         <div className="cabin">
           <div className="cabin-light" />
-          <div className={`door left ${car.door === "CLOSED" ? "" : "open"}`} />
-          <div className={`door right ${car.door === "CLOSED" ? "" : "open"}`} />
+          <div className={`door left ${doorsOpen ? "open" : ""}`} />
+          <div className={`door right ${doorsOpen ? "open" : ""}`} />
           {car.in_maintenance && <div className="out-of-service">Out of service</div>}
         </div>
       </div>
