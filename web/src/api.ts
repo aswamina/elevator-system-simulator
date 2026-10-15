@@ -71,6 +71,7 @@ export const api = {
   setClock: (update: { paused?: boolean; tick_interval?: number }) =>
     call("PATCH", "/api/simulation", update),
   step: () => call("POST", "/api/simulation/tick"),
+  setCarCount: (elevators: number) => call("PATCH", "/api/building", { elevators }),
   reset: (name: string, floors: number, elevators: number) =>
     call("PUT", "/api/building", { name, floors, elevators }),
 };

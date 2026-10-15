@@ -19,6 +19,18 @@ class Building:
             raise ValueError(f"No elevator with id {elevator_id}")
         return self.elevators[elevator_id]
 
+    def add_elevator(self) -> Elevator:
+        """Install another car, parked on the ground floor."""
+        elevator = Elevator(elevator_id=len(self.elevators), min_floor=1, max_floor=self.floors)
+        self.elevators.append(elevator)
+        return elevator
+
+    def remove_last_elevator(self) -> Elevator:
+        """Take out the highest-numbered car, so the remaining ids stay 0..n-1."""
+        if len(self.elevators) <= 1:
+            raise ValueError("Building must have at least 1 elevator")
+        return self.elevators.pop()
+
     def available_elevators(self) -> list[Elevator]:
         return [e for e in self.elevators if e.is_available]
     

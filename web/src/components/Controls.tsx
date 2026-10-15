@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { Building } from "../api";
 
+const MAX_CARS = 12;
+
 const SPEEDS = [
   { label: "0.5×", interval: 2 },
   { label: "1×", interval: 1 },
@@ -13,21 +15,21 @@ interface Props {
   onPause: (paused: boolean) => void;
   onStep: () => void;
   onSpeed: (tickInterval: number) => void;
-  onReset: (floors: number, elevators: number) => void;
+  onCarCount: (elevators: number) => void;
+  onReset: (floors: number) => void;
 }
 
-export function Controls({ building, onPause, onStep, onSpeed, onReset }: Props) {
+export function Controls({ building, onPause, onStep, onSpeed, onCarCount, onReset }: Props) {
   const { clock } = building;
+  const cars = building.elevators.length;
   const [floors, setFloors] = useState(building.floors);
-  const [cars, setCars] = useState(building.elevators.length);
 
   // follow the building when it changes underneath the form
   useEffect(() => setFloors(building.floors), [building.floors]);
-  useEffect(() => setCars(building.elevators.length), [building.elevators.length]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    onReset(floors, cars);
+    onReset(floors);
   };
 
   return (
@@ -57,16 +59,24 @@ export function Controls({ building, onPause, onStep, onSpeed, onReset }: Props)
           </select>
         </label>
       </div>
+      <div className="control-group stepper" role="group" aria-label="Number of cars">
+        <span>Cars</span>
+        <button onClick={() => onCarCount(cars - 1)} disabled={cars <= 1} aria-label="Remove a car">
+          −
+        </button>
+        <output aria-live="polite">{cars}</output>
+        <button onClick={() => onCarCount(cars + 1)} disabled={cars >= MAX_CARS} aria-label="Add a car">
+          +
+        </button>
+      </div>
       <form className="control-group" onSubmit={submit}>
         <label>
           Floors
           <input type="number" min={2} max={60} value={floors} onChange={(e) => setFloors(Number(e.target.value))} />
         </label>
-        <label>
-          Cars
-          <input type="number" min={1} max={12} value={cars} onChange={(e) => setCars(Number(e.target.value))} />
-        </label>
-        <button type="submit">New building</button>
+        <button type="submit" title="Start over with an empty building">
+          New building
+        </button>
       </form>
     </header>
   );

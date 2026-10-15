@@ -219,3 +219,31 @@ class TestUI:
             response = client.get("/")
         assert response.status_code == 200
         assert "npm run build" in response.text
+
+
+class TestResize:
+    def test_adds_cars_without_resetting(self, client):
+        client.post("/api/hall-calls", json={"floor": 5, "direction": "UP"})
+        tick(client, 2)
+        body = client.patch("/api/building", json={"elevators": 4}).json()
+        assert [e["id"] for e in body["elevators"]] == [0, 1, 2, 3]
+        assert body["tick"] == 2  # the clock kept going
+        assert body["elevators"][0]["current_floor"] == 3  # car 0 is still on its way
+        assert body["elevators"][3]["current_floor"] == 1
+
+    def test_removes_cars_and_reassigns_their_calls(self, client):
+        client.post("/api/hall-calls", json={"floor": 9, "direction": "DOWN"})
+        client.post("/api/hall-calls", json={"floor": 4, "direction": "UP"})
+        body = client.patch("/api/building", json={"elevators": 1}).json()
+        assert len(body["elevators"]) == 1
+        assert {c["elevator_id"] for c in body["hall_calls"]["assigned"]} == {0}
+        assert len(body["hall_calls"]["assigned"]) == 2
+
+    def test_new_cars_can_be_used_straight_away(self, client):
+        client.patch("/api/building", json={"elevators": 3})
+        response = client.post("/api/elevators/2/destinations", json={"floor": 6})
+        assert response.status_code == 202
+
+    @pytest.mark.parametrize("count", [0, 51])
+    def test_rejects_counts_out_of_range(self, client, count):
+        assert client.patch("/api/building", json={"elevators": count}).status_code == 422

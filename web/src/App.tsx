@@ -18,7 +18,8 @@ export default function App() {
         onPause={(paused) => act(() => api.setClock({ paused }))}
         onStep={() => act(api.step)}
         onSpeed={(tick_interval) => act(() => api.setClock({ tick_interval }))}
-        onReset={(floors, cars) => act(() => api.reset(building.name, floors, cars))}
+        onCarCount={(cars) => act(() => api.setCarCount(cars))}
+        onReset={(floors) => act(() => api.reset(building.name, floors, building.elevators.length))}
       />
       {error && (
         <div className="error" role="alert">
