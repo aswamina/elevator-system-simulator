@@ -163,3 +163,43 @@ class TestScenario:
         run_until_idle(controller)
         # floor 1 is served on the spot; every other call floor gets an arrival
         assert set(stops) == {3, 4, 5, 6, 8}
+
+
+class TestResizing:
+    def test_added_car_parks_on_the_ground_floor_and_takes_calls(self, controller, building):
+        car = controller.add_elevator()
+        assert car.id == 2
+        assert car.current_floor == 1
+        assert car.on_arrival is not None
+        building.get_elevator(0).mark_maintenance()
+        building.get_elevator(1).mark_maintenance()
+
+        controller.request(6, Direction.DOWN)
+        run_until_idle(controller)
+        assert car.current_floor == 6
+
+    def test_removed_car_hands_its_calls_to_another_car(self, controller, building):
+        controller.request(8, Direction.DOWN)
+        controller.request(3, Direction.UP)
+        owners = {eid for eid in controller._assigned.values()}
+        assert owners == {0, 1}
+
+        removed = controller.remove_elevator()
+        assert removed.id == 1
+        assert len(building.elevators) == 1
+        assert set(controller._assigned.values()) == {0}
+        assert len(controller._assigned) == 2
+
+        run_until_idle(controller)
+        assert removed.on_arrival is None
+
+    def test_removed_car_calls_go_pending_when_no_car_is_free(self, controller, building):
+        building.get_elevator(0).mark_maintenance()
+        controller.request(5, Direction.UP)
+        controller.remove_elevator()
+        assert controller._pending == [HallCall(5, Direction.UP)]
+
+    def test_cannot_remove_the_last_car(self, building, controller):
+        controller.remove_elevator()
+        with pytest.raises(ValueError):
+            controller.remove_elevator()

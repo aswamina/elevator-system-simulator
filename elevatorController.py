@@ -62,8 +62,7 @@ class ElevatorController:
 
         # wire up arrival callbacks
         for elevator in self.building.elevators:
-            elevator.on_arrival = self._on_elevator_arrival
-            elevator.on_maintenance = self._on_elevator_maintenance
+            self._wire(elevator)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -84,6 +83,23 @@ class ElevatorController:
         """Cabin button press — passenger inside elevator selects a floor."""
         elevator = self.building.get_elevator(elevator_id)
         elevator.add_destination(target_floor)
+
+    def add_elevator(self) -> Elevator:
+        """Install another car; calls still waiting for a car can go to it next tick."""
+        elevator = self.building.add_elevator()
+        self._wire(elevator)
+        return elevator
+
+    def remove_elevator(self) -> Elevator:
+        """Take out the highest-numbered car and hand its hall calls to the others.
+
+        Cabin stops go with it: anyone riding is assumed to get off.
+        """
+        elevator = self.building.remove_last_elevator()
+        elevator.on_arrival = None
+        elevator.on_maintenance = None
+        self._reassign_calls_of(elevator.id)
+        return elevator
 
     def tick(self) -> None:
         for elevator in self.building.available_elevators():
@@ -141,7 +157,14 @@ class ElevatorController:
         if self._assigned.get(call) == elevator_id:
             self._assigned.pop(call)
 
+    def _wire(self, elevator: Elevator) -> None:
+        elevator.on_arrival = self._on_elevator_arrival
+        elevator.on_maintenance = self._on_elevator_maintenance
+
     def _on_elevator_maintenance(self, elevator_id: int) -> None:
+        self._reassign_calls_of(elevator_id)
+
+    def _reassign_calls_of(self, elevator_id: int) -> None:
         """Hand the car's hall calls to another car, or park them as pending."""
         orphaned = [call for call, eid in self._assigned.items() if eid == elevator_id]
         for call in orphaned:

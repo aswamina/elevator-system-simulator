@@ -28,6 +28,9 @@ npm run build
 It draws the building in cross-section: each shaft with its car gliding floor
 to floor, ropes, counterweights and a floor indicator per shaft, hall buttons
 on every floor, and a cabin keypad, readout and maintenance switch per car.
+The **Cars − / +** control adds or removes cars while everything keeps
+running: new cars start idle on the ground floor, and a removed car (always
+the highest-numbered one) hands its waiting hall calls to the others.
 Idle cars sit with their cabin light gently pulsing. While working on the UI,
 run `npm run dev` in `web/` instead (http://localhost:5173, with API calls
 forwarded to the server on :8000) and `npm test` for its tests.
@@ -39,6 +42,7 @@ background clock; a car moves one floor per tick.
 | --- | --- | --- |
 | GET | `/api/building` | Full state: every car, outstanding hall calls, the clock |
 | PUT | `/api/building` | Replace the building (`name`, `floors`, `elevators`) |
+| PATCH | `/api/building` | Add or remove cars live: `{"elevators": 5}` |
 | GET | `/api/elevators`, `/api/elevators/{id}` | Car floor, direction, state, door, maintenance flag, stops |
 | POST | `/api/hall-calls` | Hall button: `{"floor": 5, "direction": "UP"}` |
 | POST | `/api/elevators/{id}/destinations` | Cabin button: `{"floor": 3}` |

@@ -104,6 +104,10 @@ class BuildingConfig(BaseModel):
     elevators: int = Field(default=3, ge=1, le=50)
 
 
+class BuildingUpdate(BaseModel):
+    elevators: int = Field(ge=1, le=50, description="How many cars the building should have")
+
+
 # ── App ───────────────────────────────────────────────────────────────────────
 
 def create_app(simulation: Simulation | None = None, autostart: bool = True) -> FastAPI:
@@ -167,6 +171,13 @@ def create_app(simulation: Simulation | None = None, autostart: bool = True) -> 
     def reset_building(config: BuildingConfig):
         """Replace the building with a fresh one of the given size."""
         guarded(sim.reset, config.name, config.floors, config.elevators)
+        return sim.snapshot()
+
+    @app.patch("/api/building", response_model=BuildingView, tags=["state"])
+    def resize_building(update: BuildingUpdate):
+        """Add or remove cars without restarting: new cars start on the ground
+        floor, and removed cars (highest ids first) hand their hall calls on."""
+        guarded(sim.set_elevator_count, update.elevators)
         return sim.snapshot()
 
     @app.get("/api/elevators", response_model=list[ElevatorView], tags=["elevators"])

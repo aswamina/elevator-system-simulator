@@ -42,6 +42,20 @@ class Simulation:
             self.controller = ElevatorController(building)
             self.tick_count = 0
 
+    def set_elevator_count(self, count: int) -> None:
+        """Add or remove cars while the simulation runs; everything else carries on.
+
+        New cars start idle on the ground floor. Cars are removed from the
+        highest id down, and their waiting hall calls go to the remaining cars.
+        """
+        if count < 1:
+            raise ValueError("Building must have at least 1 elevator")
+        with self._lock:
+            while len(self.building.elevators) < count:
+                self.controller.add_elevator()
+            while len(self.building.elevators) > count:
+                self.controller.remove_elevator()
+
     def request(self, floor: int, direction: Direction) -> None:
         """Hall button press."""
         if direction == Direction.IDLE:
