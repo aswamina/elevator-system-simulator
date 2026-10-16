@@ -34,6 +34,19 @@ export interface Building {
   };
 }
 
+export interface ButtonEvent {
+  id: number;
+  kind: "hall" | "cabin";
+  floor: number;
+  direction: HallDirection | null;
+  car_id: number | null;
+  pressed_at: string;
+  pressed_tick: number;
+  status: "waiting" | "served" | "cancelled";
+  served_at: string | null;
+  served_tick: number | null;
+}
+
 // The API normally serves this app, so it lives at the same origin.
 // Point the app at another server with ?api=http://host:port
 const BASE = new URLSearchParams(window.location.search).get("api") ?? "";
@@ -62,6 +75,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 
 export const api = {
   building: () => call<Building>("GET", "/api/building"),
+  events: (limit = 100) => call<ButtonEvent[]>("GET", `/api/events?limit=${limit}`),
   hallCall: (floor: number, direction: HallDirection) =>
     call("POST", "/api/hall-calls", { floor, direction }),
   cabinCall: (elevatorId: number, floor: number) =>

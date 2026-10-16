@@ -48,6 +48,21 @@ class ElevatorView(BaseModel):
     stops: list[int] = Field(description="Floors the car still has to stop at")
 
 
+class EventView(BaseModel):
+    id: int
+    kind: Literal["hall", "cabin"]
+    floor: int
+    direction: Literal["UP", "DOWN"] | None = Field(description="Hall calls only")
+    car_id: int | None = Field(
+        description="Cabin presses: the car pressed in. Hall calls: the car sent, once there is one"
+    )
+    pressed_at: str = Field(description="ISO 8601 time the button was pressed")
+    pressed_tick: int
+    status: Literal["waiting", "served", "cancelled"]
+    served_at: str | None
+    served_tick: int | None
+
+
 class ClockView(BaseModel):
     running: bool = Field(description="Background clock thread is alive")
     paused: bool
@@ -214,6 +229,12 @@ def create_app(simulation: Simulation | None = None, autostart: bool = True) -> 
         """Hall button: someone on `floor` wants to go `direction`."""
         guarded(sim.request, body.floor, Direction(body.direction))
         return sim.snapshot()
+
+    @app.get("/api/events", response_model=list[EventView], tags=["calls"])
+    def list_events(limit: int = Query(default=50, ge=1, le=200)):
+        """Hall calls and cabin button presses, newest first, with the car that
+        served each one. Pressing a button that is already lit isn't logged again."""
+        return sim.recent_events(limit)
 
     @app.get("/api/simulation", response_model=ClockView, tags=["simulation"])
     def get_clock():

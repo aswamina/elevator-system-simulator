@@ -30,7 +30,10 @@ to floor, ropes, counterweights and a floor indicator per shaft, hall buttons
 on every floor, and a cabin keypad, readout and maintenance switch per car.
 The **Cars − / +** control adds or removes cars while everything keeps
 running: new cars start idle on the ground floor, and a removed car (always
-the highest-numbered one) hands its waiting hall calls to the others.
+the highest-numbered one) hands its waiting hall calls to the others. The
+**Events** table on the right lists every hall call and cabin button press
+with its time, the car sent to it and when it was served (or that it's still
+waiting, or was cancelled because its car left service).
 Idle cars sit with their cabin light gently pulsing. While working on the UI,
 run `npm run dev` in `web/` instead (http://localhost:5173, with API calls
 forwarded to the server on :8000) and `npm test` for its tests.
@@ -47,6 +50,7 @@ background clock; a car moves one floor per tick.
 | POST | `/api/hall-calls` | Hall button: `{"floor": 5, "direction": "UP"}` |
 | POST | `/api/elevators/{id}/destinations` | Cabin button: `{"floor": 3}` |
 | PUT | `/api/elevators/{id}/maintenance` | `{"in_maintenance": true}` takes a car out of service |
+| GET | `/api/events?limit=N` | Button presses, newest first, with the car that served each |
 | GET/PATCH | `/api/simulation` | Read the clock, or set `paused` / `tick_interval` (seconds) |
 | POST | `/api/simulation/tick?steps=N` | Advance by hand |
 
